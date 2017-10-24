@@ -47,15 +47,23 @@ static ToolChain::RTTIMode CalculateRTTIMode(const ArgList &Args,
   // Explicit rtti/no-rtti args
   if (CachedRTTIArg) {
     if (CachedRTTIArg->getOption().matches(options::OPT_frtti))
-      return ToolChain::RM_EnabledExplicitly;
+      if (!Triple.isSPIR())
+        return ToolChain::RM_EnabledExplicitly;
+    
+      // SPIR disallows rtti
+      llvm::errs() << "SPIL does not support rtti\n";
+      return ToolChain::RM_DisabledImplicitly;
     else
       return ToolChain::RM_DisabledExplicitly;
   }
 
-  // -frtti is default, except for the PS4 CPU.
-  if (!Triple.isPS4CPU())
+  // -frtti is default, except for the PS4 CPU and SPIR
+  if (!Triple.isPS4CPU() && !Triple.isSPIR())
     return ToolChain::RM_EnabledImplicitly;
 
+  if (Triple.isSPIR())
+    return ToolChain::RM_DisabledImplicitly;
+  
   // On the PS4, turning on c++ exceptions turns on rtti.
   // We're assuming that, if we see -fexceptions, rtti gets turned on.
   Arg *Exceptions = Args.getLastArgNoClaim(
